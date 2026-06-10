@@ -1,0 +1,76 @@
+// -------------------------------------------------------------------------
+// ĐỔI MÃ PIN & LƯU TRỮ EEPROM
+// -------------------------------------------------------------------------
+int changePins(char mode) {
+  String currentPin = (mode == '1') ? adminPin : userPin;
+  String oldPinInput = inputSecret("Nhap PIN cu:");
+  if (oldPinInput == "CANCEL") return -1; 
+  if (oldPinInput == "BACK") return 1;
+  
+  if (oldPinInput != currentPin) {
+    lcd.clear();
+    lcd.print("Sai ma PIN cu!");
+    delay(2000);
+    return 1;
+  }
+
+  String newPin = inputSecret("Nhap PIN moi:");
+  if (newPin == "CANCEL") return -1; 
+  if (newPin == "BACK") return 1;
+  
+  if (newPin.length() == 4) {
+    String confirmPin = inputSecret("Xac nhan PIN moi:");
+    if (confirmPin == "CANCEL") return -1; 
+    if (confirmPin == "BACK") return 1;
+    
+    if (newPin == confirmPin) {
+      if (mode == '1') adminPin = newPin;
+      else userPin = newPin;
+      
+      saveSystemData();
+      lcd.clear();
+      lcd.print("Doi PIN OK!");
+    } else {
+      lcd.clear();
+      lcd.print("Khong trung khop!");
+    }
+  }
+  delay(2000);
+  return 0;
+}
+
+void saveSystemData() {
+  for (int i = 0; i < 4; i++) EEPROM.write(ADDR_ADMIN_PIN + i, adminPin[i]);
+  for (int i = 0; i < 4; i++) EEPROM.write(ADDR_USER_PIN + i, userPin[i]);
+  EEPROM.write(ADDR_RFID_COUNT, rfidCount);
+  int currentAddr = ADDR_RFID_DATA;
+  for (int i = 0; i < rfidCount; i++) {
+    for (int j = 0; j < 4; j++) {
+      EEPROM.write(currentAddr, registeredCards[i].uid[j]);
+      currentAddr++;
+    }
+  }
+  EEPROM.commit();
+}
+
+void loadSystemData() {
+  if (EEPROM.read(ADDR_ADMIN_PIN) == 0xFF || EEPROM.read(ADDR_ADMIN_PIN) == 0) {
+    saveSystemData(); 
+    return;
+  }
+  adminPin = "";
+  for (int i = 0; i < 4; i++) adminPin += (char)EEPROM.read(ADDR_ADMIN_PIN + i);
+  userPin = "";
+  for (int i = 0; i < 4; i++) userPin += (char)EEPROM.read(ADDR_USER_PIN + i);
+  
+  rfidCount = EEPROM.read(ADDR_RFID_COUNT);
+  if(rfidCount > MAX_USERS) rfidCount = 0;
+  
+  int currentAddr = ADDR_RFID_DATA;
+  for (int i = 0; i < rfidCount; i++) {
+    for (int j = 0; j < 4; j++) {
+      registeredCards[i].uid[j] = EEPROM.read(currentAddr);
+      currentAddr++;
+    }
+  }
+}
